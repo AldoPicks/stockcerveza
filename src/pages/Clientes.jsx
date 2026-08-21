@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 
 export default function Clientes() {
-  const { clientes, registrarAbono, agregarCliente } = useApp();
+  const { clientes, registrarAbono, agregarCliente, eliminarCliente } = useApp();
   const [busqueda, setBusqueda] = useState('');
   const [seleccionado, setSeleccionado] = useState(null);
   const [mostrarAlta, setMostrarAlta] = useState(false);
@@ -66,6 +66,10 @@ export default function Clientes() {
             registrarAbono({ clienteId: seleccionado.id, monto });
             setSeleccionado(null);
           }}
+          onEliminar={() => {
+            eliminarCliente(seleccionado.id);
+            setSeleccionado(null);
+          }}
         />
       )}
 
@@ -82,11 +86,13 @@ export default function Clientes() {
   );
 }
 
-function DetalleCliente({ cliente, onClose, onAbonar }) {
+function DetalleCliente({ cliente, onClose, onAbonar, onEliminar }) {
   const [monto, setMonto] = useState('');
+  const [confirmarEliminar, setConfirmarEliminar] = useState(false);
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-end z-50">
-      <div className="bg-white w-full max-w-md mx-auto rounded-t-3xl p-4 space-y-3">
+      <div className="bg-white w-full max-w-md mx-auto rounded-t-3xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
         <h3 className="font-bold text-lg">{cliente.nombre}</h3>
         <p className="text-sm text-gray-500">Saldo actual: <span className="font-bold">${cliente.saldoActual}</span></p>
         {cliente.limiteCredito && <p className="text-xs text-gray-400">Límite de crédito: ${cliente.limiteCredito}</p>}
@@ -103,9 +109,29 @@ function DetalleCliente({ cliente, onClose, onAbonar }) {
             onClick={() => monto && onAbonar(Number(monto))}
             className="flex-1 bg-brand text-white rounded-xl py-3 font-semibold"
           >
-            Registrar abono
+            Registrar abono xd
           </button>
         </div>
+
+        {!confirmarEliminar && (
+          <button onClick={() => setConfirmarEliminar(true)} className="w-full text-red-500 text-sm font-semibold py-2 border-t pt-3">
+            Eliminar cliente
+          </button>
+        )}
+        {confirmarEliminar && (
+          <div className="bg-red-50 rounded-xl p-3 text-center space-y-2 border-t pt-3">
+            <p className="text-sm text-red-600">
+              {cliente.saldoActual > 0
+                ? `Este cliente ${cliente.nombre} tiene una deuda de $${cliente.saldoActual} sin pagar. Al eliminarlo, esa deuda y su historial de abonos se borran también. `
+                : 'Su historial de abonos se borra también. '}
+              No se puede deshacer. ¿Confirmas?
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmarEliminar(false)} className="flex-1 border rounded-xl py-2 text-sm">Cancelar</button>
+              <button onClick={onEliminar} className="flex-1 bg-red-500 text-white rounded-xl py-2 text-sm font-semibold">Sí, eliminar</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

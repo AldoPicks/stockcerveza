@@ -176,7 +176,7 @@ export default function Venta() {
         </div>
       )}
 
-      {productos.map((p) => {
+      {productos.filter((p) => p.activo).map((p) => {
         const enCarrito = carrito.find((i) => i.productoId === p.id);
         const disponible = stockEnVenta(p.id);
         return (

@@ -114,14 +114,95 @@ export function AppProvider({ children }) {
   }
 
   // ---------------- Productos ----------------
+  // `datos` puede incluir: nombre, categoria, tipoEnvase, stockMinimo, precioVenta
   async function agregarProducto(datos) {
-    const nuevo = crearProducto(datos);
+    const { precioVenta, ...datosProducto } = datos;
+
     if (firebaseConfigurado) {
-      await fs.crearProductoFS(nuevo);
-      return nuevo;
+      const nuevo = crearProducto(datosProducto);
+      const creado = await fs.crearProductoFS(nuevo);
+      const presentacion = crearPresentacion({
+        productoId: creado.id,
+        nombre: 'Unidad',
+        factorConversion: 1,
+        precioVenta: precioVenta ?? 0,
+        esDefault: true,
+      });
+      await fs.crearPresentacionFS(presentacion);
+      return creado;
     }
+
+    const nuevo = crearProducto(datosProducto);
+    const presentacion = crearPresentacion({
+      productoId: nuevo.id,
+      nombre: 'Unidad',
+      factorConversion: 1,
+      precioVenta: precioVenta ?? 0,
+      esDefault: true,
+    });
     setProductos((prev) => [...prev, nuevo]);
+    setPresentaciones((prev) => [...prev, presentacion]);
     return nuevo;
+  }
+
+  // Edita nombre/categoría/tipoEnvase/stockMinimo y, si se manda, el precio
+  // (que en realidad vive en la Presentación default, no en el Producto).
+  async function actualizarProducto(productoId, cambios) {
+    const { precioVenta, ...datosProducto } = cambios;
+
+    if (firebaseConfigurado) {
+      if (Object.keys(datosProducto).length > 0) await fs.actualizarProductoFS(productoId, datosProducto);
+      if (precioVenta !== undefined) {
+        const pres = presentaciones.find((p) => p.productoId === productoId && p.esDefault);
+        if (pres) await fs.actualizarPresentacionFS(pres.id, { precioVenta });
+      }
+      return;
+    }
+
+    if (Object.keys(datosProducto).length > 0) {
+      setProductos((prev) => prev.map((p) => (p.id === productoId ? { ...p, ...datosProducto } : p)));
+    }
+    if (precioVenta !== undefined) {
+      setPresentaciones((prev) => prev.map((p) => (p.productoId === productoId && p.esDefault ? { ...p, precioVenta } : p)));
+    }
+  }
+
+  // Baja lógica (RF01): no se borra físicamente para no romper el historial
+  // de ventas/lotes que ya lo referencian. Simplemente deja de aparecer
+  // en Venta, Compras, Salida a venta, etc.
+  async function eliminarProducto(productoId) {
+    if (firebaseConfigurado) {
+      await fs.actualizarProductoFS(productoId, { activo: false });
+      return;
+    }
+    setProductos((prev) => prev.map((p) => (p.id === productoId ? { ...p, activo: false } : p)));
+  }
+
+  async function reactivarProducto(productoId) {
+    if (firebaseConfigurado) {
+      await fs.actualizarProductoFS(productoId, { activo: true });
+      return;
+    }
+    setProductos((prev) => prev.map((p) => (p.id === productoId ? { ...p, activo: true } : p)));
+  }
+
+  // Borra el producto de verdad, junto con sus lotes, presentaciones y
+  // stock de envases — a diferencia de eliminarProducto (baja lógica).
+  // Úsalo para limpiar catálogo de prueba, no para productos con
+  // historial de ventas que quieras conservar.
+  async function eliminarProductoPermanente(productoId) {
+    if (firebaseConfigurado) {
+      await fs.eliminarProductoPermanenteFS(productoId);
+      return;
+    }
+    setProductos((prev) => prev.filter((p) => p.id !== productoId));
+    setLotes((prev) => prev.filter((l) => l.productoId !== productoId));
+    setPresentaciones((prev) => prev.filter((p) => p.productoId !== productoId));
+    setEnvaseStockPorProducto((prev) => {
+      const copia = { ...prev };
+      delete copia[productoId];
+      return copia;
+    });
   }
 
   // ---------------- RF08: Compras ----------------
@@ -329,6 +410,15 @@ export function AppProvider({ children }) {
     return nuevo;
   }
 
+  // Elimina al cliente y, en Firestore, también su historial de abonos.
+  async function eliminarCliente(clienteId) {
+    if (firebaseConfigurado) {
+      await fs.eliminarClienteFS(clienteId);
+      return;
+    }
+    setClientes((prev) => prev.filter((c) => c.id !== clienteId));
+  }
+
   async function registrarAbono({ clienteId, monto, ventaId = null, metodoPago = 'efectivo' }) {
     const abono = crearAbono({ clienteId, ventaId, monto, metodoPago });
     const cliente = clientes.find((c) => c.id === clienteId);
@@ -375,11 +465,16 @@ export function AppProvider({ children }) {
       stockAlmacen,
       stockEnVenta,
       agregarProducto,
+      actualizarProducto,
+      eliminarProducto,
+      eliminarProductoPermanente,
+      reactivarProducto,
       registrarCompra,
       iniciarSalida,
       cerrarDia,
       confirmarVenta,
       agregarCliente,
+      eliminarCliente,
       registrarAbono,
       registrarIncidenciaManual,
     }),

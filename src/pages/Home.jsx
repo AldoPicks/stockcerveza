@@ -12,7 +12,7 @@ export default function Home() {
   const cuentasPorCobrar = clientes.reduce((s, c) => s + c.saldoActual, 0);
   const envasesVacios = Object.values(envaseStockPorProducto).reduce((s, e) => s + e.cantidadAlmacen + e.cantidadEnVenta, 0);
 
-  const stockCritico = productos.filter((p) => stockAlmacen(p.id) <= p.stockMinimo);
+  const stockCritico = productos.filter((p) => p.activo && stockAlmacen(p.id) <= p.stockMinimo);
   const incidenciasSemana = incidenciasEnvase.slice(-5).reverse();
 
   return (

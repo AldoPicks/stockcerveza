@@ -15,7 +15,9 @@ import {
   addDoc,
   updateDoc,
   setDoc,
+  getDoc,
   getDocs,
+  deleteDoc,
   onSnapshot,
   query,
   where,
@@ -155,6 +157,14 @@ export async function crearClienteFS(cliente) {
   return { id: ref.id, ...datos };
 }
 
+export async function actualizarProductoFS(productoId, cambios) {
+  await updateDoc(doc(db, 'productos', productoId), cambios);
+}
+
+export async function actualizarPresentacionFS(presentacionId, cambios) {
+  await updateDoc(doc(db, 'presentaciones', presentacionId), cambios);
+}
+
 export async function actualizarSaldoClienteFS(clienteId, nuevoSaldo) {
   await updateDoc(doc(db, 'clientes', clienteId), { saldoActual: nuevoSaldo });
 }
@@ -207,12 +217,26 @@ export async function crearCierreFS(cierre) {
 }
 
 // ---------- Sembrado inicial ----------
-// Si la colección "productos" está vacía (primera vez que se usa el proyecto
-// con este Firebase), sube los datos de prueba para que no arranques desde cero.
+// Sube los datos de prueba SOLO la primera vez que se usa el proyecto con
+// este Firebase. Se controla con un documento "guardián" (config/meta) en
+// vez de solo revisar si la colección está vacía — así, si más adelante
+// borras productos a propósito (para limpiar el catálogo de prueba), la
+// app NO los vuelve a sembrar solo porque la colección volvió a estar vacía.
 
 export async function sembrarDatosSiEstaVacio() {
+  const metaRef = doc(db, 'config', 'meta');
+  const metaSnap = await getDoc(metaRef);
+  if (metaSnap.exists() && metaSnap.data()?.sembrado) {
+    return false; // ya se sembró alguna vez: nunca más se vuelve a sembrar solo
+  }
+
   const snap = await getDocs(collection(db, 'productos'));
-  if (!snap.empty) return false; // ya hay datos reales, no tocar nada
+  if (!snap.empty) {
+    // Ya hay datos reales (alguien los cargó a mano) — no sembrar,
+    // pero sí marcar el guardián para no volver a preguntar.
+    await setDoc(metaRef, { sembrado: true }, { merge: true });
+    return false;
+  }
 
   const { productos, presentaciones, engine, clientes, envaseStockPorProducto } = construirDatosSemilla();
   const batch = writeBatch(db);
@@ -245,7 +269,39 @@ export async function sembrarDatosSiEstaVacio() {
       cantidadEnVenta: e.cantidadEnVenta,
     });
   });
+  batch.set(metaRef, { sembrado: true });
 
   await batch.commit();
   return true;
+}
+
+// ---------- Eliminar cliente (con su historial de abonos) ----------
+
+export async function eliminarClienteFS(clienteId) {
+  const batch = writeBatch(db);
+  const abonosSnap = await getDocs(query(collection(db, 'abonos'), where('clienteId', '==', clienteId)));
+  abonosSnap.forEach((d) => batch.delete(d.ref));
+  batch.delete(doc(db, 'clientes', clienteId));
+  await batch.commit();
+}
+
+// ---------- Eliminar producto de forma permanente ----------
+// A diferencia de actualizarProductoFS(id, {activo:false}) (baja lógica),
+// esto borra también sus lotes, presentaciones y stock de envases.
+// Úsalo solo para limpiar catálogo de prueba, no para productos con
+// historial de ventas real que quieras conservar.
+
+export async function eliminarProductoPermanenteFS(productoId) {
+  const batch = writeBatch(db);
+
+  const lotesSnap = await getDocs(query(collection(db, 'lotes'), where('productoId', '==', productoId)));
+  lotesSnap.forEach((d) => batch.delete(d.ref));
+
+  const presSnap = await getDocs(query(collection(db, 'presentaciones'), where('productoId', '==', productoId)));
+  presSnap.forEach((d) => batch.delete(d.ref));
+
+  batch.delete(doc(db, 'envasesStock', productoId));
+  batch.delete(doc(db, 'productos', productoId));
+
+  await batch.commit();
 }

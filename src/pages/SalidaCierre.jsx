@@ -40,7 +40,7 @@ function IniciarSalida({ productos, stockAlmacen, onIniciar }) {
       </p>
 
       <div className="bg-white rounded-2xl divide-y">
-        {productos.map((p) => (
+        {productos.filter((p) => p.activo).map((p) => (
           <div key={p.id} className="flex justify-between items-center p-3">
             <div>
               <p className="font-semibold text-sm">{p.emoji} {p.nombre}</p>

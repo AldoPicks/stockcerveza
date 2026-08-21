@@ -27,7 +27,7 @@ export default function Compras() {
 
       <div className="bg-white rounded-2xl p-4 space-y-3">
         <select className="w-full border rounded-xl px-3 py-2" value={productoId} onChange={(e) => setProductoId(e.target.value)}>
-          {productos.map((p) => (
+          {productos.filter((p) => p.activo).map((p) => (
             <option key={p.id} value={p.id}>{p.emoji} {p.nombre} (Almacén: {stockAlmacen(p.id)})</option>
           ))}
         </select>
