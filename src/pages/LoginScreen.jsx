@@ -20,6 +20,7 @@ export default function LoginScreen() {
       await loginConPin(usuario, pin);
     } catch (err) {
       setError('Usuario o PIN incorrecto.');
+      setPin('');
     } finally {
       setCargando(false);
     }

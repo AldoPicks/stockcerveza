@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
+import VentaDashboard from './VentaDashboard.jsx';
 
 export default function Venta() {
   const { productos, presentaciones, clientes, stockEnVenta, confirmarVenta, agregarCliente } = useApp();
+  const [vista, setVista] = useState('vender'); // 'vender' | 'dashboard'
   const [carrito, setCarrito] = useState([]); // { productoId, cantidad, precioUnitario, descuento, traeCanje }
   const [mostrarCheckout, setMostrarCheckout] = useState(false);
   const [tipoPago, setTipoPago] = useState('Contado');
@@ -168,7 +170,30 @@ export default function Venta() {
 
   return (
     <div className="p-4 pb-28 space-y-3">
-      <h2 className="font-bold text-lg">Nueva venta</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="font-bold text-lg">{vista === 'vender' ? 'Nueva venta' : 'Dashboard'}</h2>
+        <div className="bg-white rounded-full p-1 flex text-xs">
+          <button
+            onClick={() => setVista('vender')}
+            className={`px-3 py-1.5 rounded-full font-semibold ${vista === 'vender' ? 'bg-brand text-white' : 'text-gray-500'}`}
+          >
+            Vender
+          </button>
+          <button
+            onClick={() => setVista('dashboard')}
+            className={`px-3 py-1.5 rounded-full font-semibold ${vista === 'dashboard' ? 'bg-brand text-white' : 'text-gray-500'}`}
+          >
+            📊 Dashboard
+          </button>
+        </div>
+      </div>
+
+      {vista === 'dashboard' ? (
+        <div className="-mx-4">
+          <VentaDashboard />
+        </div>
+      ) : (
+        <>
       {mensaje && (
         <div className="bg-yellow-50 text-yellow-700 text-sm rounded-xl p-3 flex justify-between">
           <span>{mensaje}</span>
@@ -224,6 +249,8 @@ export default function Venta() {
           <span>Carrito · {totalPzas} pzas</span>
           <span>${total.toFixed(0)}</span>
         </button>
+      )}
+        </>
       )}
     </div>
   );

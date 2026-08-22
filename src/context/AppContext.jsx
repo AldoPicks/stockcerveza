@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { construirDatosSemilla } from '../data/seedData.js';
 import {
   crearProducto,
+  crearPresentacion,
   crearCliente,
   crearVenta,
   crearAbono,
@@ -154,7 +155,12 @@ export function AppProvider({ children }) {
       if (Object.keys(datosProducto).length > 0) await fs.actualizarProductoFS(productoId, datosProducto);
       if (precioVenta !== undefined) {
         const pres = presentaciones.find((p) => p.productoId === productoId && p.esDefault);
-        if (pres) await fs.actualizarPresentacionFS(pres.id, { precioVenta });
+        if (pres) {
+          await fs.actualizarPresentacionFS(pres.id, { precioVenta });
+        } else {
+          // Producto sin Presentación todavía (dado de alta antes de este fix): la creamos.
+          await fs.crearPresentacionFS(crearPresentacion({ productoId, nombre: 'Unidad', factorConversion: 1, precioVenta, esDefault: true }));
+        }
       }
       return;
     }
@@ -163,7 +169,13 @@ export function AppProvider({ children }) {
       setProductos((prev) => prev.map((p) => (p.id === productoId ? { ...p, ...datosProducto } : p)));
     }
     if (precioVenta !== undefined) {
-      setPresentaciones((prev) => prev.map((p) => (p.productoId === productoId && p.esDefault ? { ...p, precioVenta } : p)));
+      setPresentaciones((prev) => {
+        const existe = prev.some((p) => p.productoId === productoId && p.esDefault);
+        if (existe) {
+          return prev.map((p) => (p.productoId === productoId && p.esDefault ? { ...p, precioVenta } : p));
+        }
+        return [...prev, crearPresentacion({ productoId, nombre: 'Unidad', factorConversion: 1, precioVenta, esDefault: true })];
+      });
     }
   }
 

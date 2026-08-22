@@ -2,10 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
 
 export default function Mas() {
   const { incidenciasEnvase, historialCierres, firebaseConfigurado } = useApp();
   const { usuario, logout } = useAuth();
+  const { modoOscuro, alternarModoOscuro } = useTheme();
 
   const item = (to, icon, titulo, subtitulo) => (
     <Link to={to} className="bg-white rounded-2xl p-4 flex items-center gap-3">
@@ -23,6 +25,22 @@ export default function Mas() {
       {item('/envases', '🗑️', 'Envases e Incidencias', `${incidenciasEnvase.length} incidencias registradas`)}
       {item('/compras', '💵', 'Compras', 'Registrar nueva compra')}
       {item('/salida-cierre', '📤', 'Salida a venta / Cierre', `${historialCierres.length} cierres realizados`)}
+
+      <button
+        onClick={alternarModoOscuro}
+        className="w-full bg-white rounded-2xl p-4 flex items-center justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{modoOscuro ? '🌙' : '☀️'}</span>
+          <div className="text-left">
+            <p className="font-semibold text-sm">Modo oscuro</p>
+            <p className="text-xs text-gray-400">{modoOscuro ? 'Activado' : 'Desactivado'}</p>
+          </div>
+        </div>
+        <div className={`w-11 h-6 rounded-full flex items-center px-0.5 transition-colors ${modoOscuro ? 'bg-brand justify-end' : 'bg-gray-200 justify-start'}`}>
+          <div className="w-5 h-5 bg-white rounded-full shadow" />
+        </div>
+      </button>
 
       {firebaseConfigurado && usuario && (
         <div className="bg-white rounded-2xl p-4 flex items-center justify-between">

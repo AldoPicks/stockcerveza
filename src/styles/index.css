@@ -5,3 +5,79 @@
 body {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ============================================================
+   Modo oscuro — overrides globales.
+   En vez de agregar "dark:" a cada clase en cada archivo (docenas
+   de bg-white, bg-gray-50, etc. repetidas por toda la app), se
+   sobrescriben aquí las clases neutras más usadas. Los colores de
+   marca (bg-brand, bg-brand-orange) y los de estado (verde/rojo/
+   amarillo de alertas y badges) se dejan igual a propósito, para
+   que sigan siendo reconocibles en ambos modos.
+   ============================================================ */
+.dark {
+  color-scheme: dark;
+  color: #e2e8f0; /* color de texto por defecto; los textos con su propia
+                      clase de color (text-red-500, text-green-700, etc.)
+                      siguen ganando por especificidad de CSS */
+}
+
+.dark body {
+  background-color: #0f172a;
+}
+
+.dark .bg-gray-50 {
+  background-color: #0f172a;
+}
+
+.dark .bg-white {
+  background-color: #1e293b;
+}
+
+.dark .bg-gray-100 {
+  background-color: #334155;
+}
+
+.dark .border,
+.dark .border-t,
+.dark .border-b {
+  border-color: #334155;
+}
+
+.dark [class*='divide-y'] > * + * {
+  border-color: #334155 !important;
+}
+
+.dark input,
+.dark select {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+.dark input::placeholder {
+  color: #64748b;
+}
+
+.dark .bg-green-50 {
+  background-color: #052e1a;
+}
+
+.dark .bg-yellow-50 {
+  background-color: #422006;
+}
+
+.dark .bg-red-50 {
+  background-color: #450a0a;
+}
+
+.dark .bg-red-100 {
+  background-color: #7f1d1d;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  -webkit-tap-highlight-color: transparent;
+}
