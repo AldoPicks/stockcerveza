@@ -2,16 +2,32 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 
 export default function SalidaCierre() {
-  const { productos, stockAlmacen, stockEnVenta, salidaActual, iniciarSalida, cerrarDia, envaseStockPorProducto } = useApp();
+  const { productos, ventas, stockAlmacen, stockEnVenta, salidaActual, iniciarSalida, cerrarDia } = useApp();
 
   if (!salidaActual) {
     return <IniciarSalida productos={productos} stockAlmacen={stockAlmacen} onIniciar={iniciarSalida} />;
   }
+
+  // Cuánto se ha vendido de cada producto retornable desde que se abrió este
+  // ciclo — esto es lo que el cierre debe pedir contar (no solo los canjes).
+  const inicioCiclo = new Date(salidaActual.fechaApertura);
+  const esperadoEnvasesPorProducto = {};
+  ventas
+    .filter((v) => v.estado === 'Confirmada' && new Date(v.fecha) >= inicioCiclo)
+    .forEach((v) => {
+      v.detalles.forEach((d) => {
+        const producto = productos.find((p) => p.id === d.productoId);
+        if (producto?.tipoEnvase === 'Retornable') {
+          esperadoEnvasesPorProducto[d.productoId] = (esperadoEnvasesPorProducto[d.productoId] || 0) + d.cantidad;
+        }
+      });
+    });
+
   return (
     <CerrarDia
       productos={productos}
       stockEnVenta={stockEnVenta}
-      envaseStockPorProducto={envaseStockPorProducto}
+      esperadoEnvasesPorProducto={esperadoEnvasesPorProducto}
       onCerrar={cerrarDia}
     />
   );
@@ -73,7 +89,7 @@ function IniciarSalida({ productos, stockAlmacen, onIniciar }) {
   );
 }
 
-function CerrarDia({ productos, stockEnVenta, envaseStockPorProducto, onCerrar }) {
+function CerrarDia({ productos, stockEnVenta, esperadoEnvasesPorProducto, onCerrar }) {
   const [conteoProducto, setConteoProducto] = useState({});
   const [envasesCompletos, setEnvasesCompletos] = useState({});
   const [envasesQuebrados, setEnvasesQuebrados] = useState({});
@@ -81,7 +97,7 @@ function CerrarDia({ productos, stockEnVenta, envaseStockPorProducto, onCerrar }
   const [error, setError] = useState(null);
 
   const productosEnVenta = productos.filter((p) => stockEnVenta(p.id) > 0);
-  const retornablesEnVenta = productos.filter((p) => p.tipoEnvase === 'Retornable' && envaseStockPorProducto[p.id]?.cantidadEnVenta > 0);
+  const retornablesEnVenta = productos.filter((p) => (esperadoEnvasesPorProducto[p.id] ?? 0) > 0);
 
   async function confirmarCierre() {
     setError(null);
@@ -165,7 +181,9 @@ function CerrarDia({ productos, stockEnVenta, envaseStockPorProducto, onCerrar }
           {retornablesEnVenta.map((p) => (
             <div key={p.id} className="p-3">
               <p className="font-semibold text-sm mb-1">{p.emoji} {p.nombre}</p>
-              <p className="text-xs text-gray-400 mb-2">Sistema espera: {envaseStockPorProducto[p.id].cantidadEnVenta}</p>
+              <p className="text-xs text-gray-400 mb-2">
+                Se vendieron {esperadoEnvasesPorProducto[p.id]} — cuenta cuántos envases tienes de vuelta
+              </p>
               <div className="flex gap-2">
                 <input
                   type="number"

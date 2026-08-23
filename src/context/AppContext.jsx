@@ -298,24 +298,40 @@ export function AppProvider({ children }) {
       resultadoProducto.push({ productoId, sacado, esperado: enVentaAhora, contado, faltante });
     });
 
+    // Envases: "esperado" = unidades retornables VENDIDAS durante este ciclo
+    // (no solo los canjes recibidos). Cada venta retornable espera recuperar
+    // un envase, sea por canje inmediato o porque falta contarlo como pérdida.
+    const inicioCiclo = new Date(salidaActual.fechaApertura);
+    const vendidoRetornablePorProducto = {};
+    ventas
+      .filter((v) => v.estado === 'Confirmada' && new Date(v.fecha) >= inicioCiclo)
+      .forEach((v) => {
+        v.detalles.forEach((d) => {
+          const producto = productos.find((p) => p.id === d.productoId);
+          if (producto?.tipoEnvase === 'Retornable') {
+            vendidoRetornablePorProducto[d.productoId] = (vendidoRetornablePorProducto[d.productoId] || 0) + d.cantidad;
+          }
+        });
+      });
+
     const envasesResultado = [];
     const nuevasIncidencias = [];
     const envaseUpdates = [];
 
-    Object.values(envaseStockPorProducto).forEach((env) => {
-      const esperado = env.cantidadEnVenta;
-      const completos = envasesCompletos[env.productoId] ?? esperado;
-      const quebrados = envasesQuebrados[env.productoId] ?? 0;
+    Object.entries(vendidoRetornablePorProducto).forEach(([productoId, esperado]) => {
+      const completos = envasesCompletos[productoId] ?? 0;
+      const quebrados = envasesQuebrados[productoId] ?? 0;
       const faltante = Math.max(0, esperado - completos - quebrados);
 
-      envaseUpdates.push({ productoId: env.productoId, cantidadAlmacen: env.cantidadAlmacen + completos, cantidadEnVenta: 0 });
+      const env = envaseStockPorProducto[productoId] ?? { cantidadAlmacen: 0, cantidadEnVenta: 0 };
+      envaseUpdates.push({ productoId, cantidadAlmacen: env.cantidadAlmacen + completos, cantidadEnVenta: 0 });
       if (faltante > 0) {
-        nuevasIncidencias.push(crearIncidenciaEnvase({ productoId: env.productoId, tipo: 'No_encontrado_cierre', cantidad: faltante, origen: 'Cierre_diario' }));
+        nuevasIncidencias.push(crearIncidenciaEnvase({ productoId, tipo: 'No_encontrado_cierre', cantidad: faltante, origen: 'Cierre_diario' }));
       }
       if (quebrados > 0) {
-        nuevasIncidencias.push(crearIncidenciaEnvase({ productoId: env.productoId, tipo: 'Roto', cantidad: quebrados, origen: 'Cierre_diario' }));
+        nuevasIncidencias.push(crearIncidenciaEnvase({ productoId, tipo: 'Roto', cantidad: quebrados, origen: 'Cierre_diario' }));
       }
-      envasesResultado.push({ productoId: env.productoId, esperado, completos, quebrados, faltante });
+      envasesResultado.push({ productoId, esperado, completos, quebrados, faltante });
     });
 
     const cierre = { salidaId: salidaActual.id, fecha: new Date(), resultadoProducto, envasesResultado };
