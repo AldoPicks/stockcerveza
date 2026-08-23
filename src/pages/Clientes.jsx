@@ -62,13 +62,21 @@ export default function Clientes() {
         <DetalleCliente
           cliente={seleccionado}
           onClose={() => setSeleccionado(null)}
-          onAbonar={(monto) => {
-            registrarAbono({ clienteId: seleccionado.id, monto });
-            setSeleccionado(null);
+          onAbonar={async (monto) => {
+            try {
+              await registrarAbono({ clienteId: seleccionado.id, monto });
+              setSeleccionado(null);
+            } catch (e) {
+              alert(e.message);
+            }
           }}
-          onEliminar={() => {
-            eliminarCliente(seleccionado.id);
-            setSeleccionado(null);
+          onEliminar={async () => {
+            try {
+              await eliminarCliente(seleccionado.id);
+              setSeleccionado(null);
+            } catch (e) {
+              alert(e.message);
+            }
           }}
         />
       )}
@@ -76,9 +84,13 @@ export default function Clientes() {
       {mostrarAlta && (
         <AltaCliente
           onClose={() => setMostrarAlta(false)}
-          onCrear={(datos) => {
-            agregarCliente(datos);
-            setMostrarAlta(false);
+          onCrear={async (datos) => {
+            try {
+              await agregarCliente(datos);
+              setMostrarAlta(false);
+            } catch (e) {
+              alert(e.message);
+            }
           }}
         />
       )}
@@ -109,7 +121,7 @@ function DetalleCliente({ cliente, onClose, onAbonar, onEliminar }) {
             onClick={() => monto && onAbonar(Number(monto))}
             className="flex-1 bg-brand text-white rounded-xl py-3 font-semibold"
           >
-            Registrar abono xd
+            Registrar abono
           </button>
         </div>
 
@@ -122,7 +134,7 @@ function DetalleCliente({ cliente, onClose, onAbonar, onEliminar }) {
           <div className="bg-red-50 rounded-xl p-3 text-center space-y-2 border-t pt-3">
             <p className="text-sm text-red-600">
               {cliente.saldoActual > 0
-                ? `Este cliente ${cliente.nombre} tiene una deuda de $${cliente.saldoActual} sin pagar. Al eliminarlo, esa deuda y su historial de abonos se borran también. `
+                ? `Este cliente tiene una deuda de $${cliente.saldoActual} sin pagar. Al eliminarlo, esa deuda y su historial de abonos se borran también. `
                 : 'Su historial de abonos se borra también. '}
               No se puede deshacer. ¿Confirmas?
             </p>

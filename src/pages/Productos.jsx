@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 
-const CATEGORIAS = ['Todo', 'Cerveza', 'Refresco', 'Botana', 'Preparado'];
+const CATEGORIAS = ['Todo', 'Cerveza', 'Refresco', 'Botana', 'Cigarros', 'Preparado'];
+const CATEGORIAS_FORM = ['Cerveza', 'Refresco', 'Botana', 'Cigarros', 'Preparado'];
 
 export default function Productos() {
-  const { productos, presentaciones, stockAlmacen, agregarProducto, actualizarProducto, eliminarProducto, eliminarProductoPermanente, reactivarProducto } = useApp();
+  const {
+    productos,
+    presentaciones,
+    stockAlmacen,
+    engine,
+    agregarProducto,
+    actualizarProducto,
+    eliminarProducto,
+    eliminarProductoPermanente,
+    reactivarProducto,
+  } = useApp();
   const [busqueda, setBusqueda] = useState('');
   const [categoria, setCategoria] = useState('Todo');
   const [mostrarAlta, setMostrarAlta] = useState(false);
@@ -23,6 +34,10 @@ export default function Productos() {
 
   function precioDe(productoId) {
     return presentaciones.find((p) => p.productoId === productoId && p.esDefault)?.precioVenta ?? 0;
+  }
+
+  function costoPromedioDe(productoId) {
+    return engine.costoPromedioPonderado(productoId, 'almacen');
   }
 
   return (
@@ -60,6 +75,7 @@ export default function Productos() {
         {filtrados.map((p) => {
           const stock = stockAlmacen(p.id);
           const critico = stock <= p.stockMinimo;
+          const costo = costoPromedioDe(p.id);
           return (
             <button
               key={p.id}
@@ -68,7 +84,10 @@ export default function Productos() {
             >
               <div>
                 <p className="font-semibold text-sm">{p.emoji} {p.nombre}</p>
-                <p className="text-xs text-gray-400">${precioDe(p.id)} · stock mínimo {p.stockMinimo}</p>
+                <p className="text-xs text-gray-400">
+                  Costo prom. ${costo > 0 ? costo.toFixed(2) : '—'} · Venta ${precioDe(p.id)}
+                  {p.tipoVenta === 'Caja' && <span className="ml-1 bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">Caja de {p.unidadesPorCaja}</span>}
+                </p>
               </div>
               <div className="text-right">
                 <p className={`font-bold ${critico && !verBaja ? 'text-yellow-600' : ''}`}>{stock}</p>
@@ -101,6 +120,7 @@ export default function Productos() {
         <FormularioProducto
           titulo="Editar producto"
           inicial={{ ...productoEditar, precioVenta: precioDe(productoEditar.id) }}
+          lotes={engine.lotesDeProducto(productoEditar.id, 'almacen')}
           onClose={() => setProductoEditar(null)}
           onGuardar={(datos) => actualizarProducto(productoEditar.id, datos)}
           onEliminar={
@@ -129,14 +149,17 @@ export default function Productos() {
   );
 }
 
-function FormularioProducto({ titulo, inicial, onClose, onGuardar, onEliminar, onReactivar, onEliminarPermanente }) {
+function FormularioProducto({ titulo, inicial, lotes, onClose, onGuardar, onEliminar, onReactivar, onEliminarPermanente }) {
   const [nombre, setNombre] = useState(inicial?.nombre ?? '');
   const [categoria, setCategoria] = useState(inicial?.categoria ?? 'Cerveza');
   const [tipoEnvase, setTipoEnvase] = useState(inicial?.tipoEnvase ?? 'N/A');
+  const [tipoVenta, setTipoVenta] = useState(inicial?.tipoVenta ?? 'Individual');
+  const [unidadesPorCaja, setUnidadesPorCaja] = useState(inicial?.unidadesPorCaja ?? 10);
   const [stockMinimo, setStockMinimo] = useState(inicial?.stockMinimo ?? 10);
   const [precioVenta, setPrecioVenta] = useState(inicial?.precioVenta ?? '');
   const [confirmarBaja, setConfirmarBaja] = useState(false);
   const [confirmarPermanente, setConfirmarPermanente] = useState(false);
+  const [verLotes, setVerLotes] = useState(false);
 
   function guardar() {
     if (!nombre.trim()) return;
@@ -144,6 +167,8 @@ function FormularioProducto({ titulo, inicial, onClose, onGuardar, onEliminar, o
       nombre: nombre.trim(),
       categoria,
       tipoEnvase,
+      tipoVenta,
+      unidadesPorCaja: tipoVenta === 'Caja' ? Number(unidadesPorCaja) : 1,
       stockMinimo: Number(stockMinimo),
       precioVenta: precioVenta === '' ? undefined : Number(precioVenta),
     });
@@ -156,27 +181,83 @@ function FormularioProducto({ titulo, inicial, onClose, onGuardar, onEliminar, o
         <h3 className="font-bold text-lg">{titulo}</h3>
         <input className="w-full border rounded-xl px-3 py-2" placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
         <select className="w-full border rounded-xl px-3 py-2" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
-          {['Cerveza', 'Refresco', 'Botana', 'Preparado'].map((c) => <option key={c}>{c}</option>)}
+          {CATEGORIAS_FORM.map((c) => <option key={c}>{c}</option>)}
         </select>
         <select className="w-full border rounded-xl px-3 py-2" value={tipoEnvase} onChange={(e) => setTipoEnvase(e.target.value)}>
           <option value="N/A">Sin envase</option>
           <option value="Retornable">Retornable</option>
           <option value="No retornable">No retornable</option>
         </select>
+
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Tipo de venta</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setTipoVenta('Individual')}
+              className={`rounded-xl py-2 text-sm font-semibold border ${tipoVenta === 'Individual' ? 'bg-brand text-white border-brand' : ''}`}
+            >
+              Individual
+            </button>
+            <button
+              type="button"
+              onClick={() => setTipoVenta('Caja')}
+              className={`rounded-xl py-2 text-sm font-semibold border ${tipoVenta === 'Caja' ? 'bg-brand text-white border-brand' : ''}`}
+            >
+              Por caja
+            </button>
+          </div>
+        </div>
+
+        {tipoVenta === 'Caja' && (
+          <div>
+            <input
+              type="number"
+              min="1"
+              className="w-full border rounded-xl px-3 py-2"
+              placeholder="Unidades por caja"
+              value={unidadesPorCaja}
+              onChange={(e) => setUnidadesPorCaja(e.target.value)}
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Así, en Compras podrás capturar "compré N cajas a $X cada una" y la app calcula sola el costo por unidad.
+            </p>
+          </div>
+        )}
+
         <input
           type="number"
           className="w-full border rounded-xl px-3 py-2"
-          placeholder="Precio de venta ($)"
+          placeholder="Precio de venta ($, por unidad)"
           value={precioVenta}
           onChange={(e) => setPrecioVenta(e.target.value)}
         />
         <input
           type="number"
           className="w-full border rounded-xl px-3 py-2"
-          placeholder="Stock mínimo"
+          placeholder="Stock mínimo (en unidades)"
           value={stockMinimo}
           onChange={(e) => setStockMinimo(e.target.value)}
         />
+
+        {lotes && lotes.length > 0 && (
+          <div>
+            <button type="button" onClick={() => setVerLotes((v) => !v)} className="text-xs text-brand font-semibold">
+              {verLotes ? '▲ Ocultar desglose por lote' : `▼ Ver desglose por lote (${lotes.length})`}
+            </button>
+            {verLotes && (
+              <div className="bg-gray-50 rounded-xl mt-2 divide-y">
+                {lotes.map((l) => (
+                  <div key={l.id} className="flex justify-between text-xs p-2">
+                    <span>{new Date(l.fechaIngreso).toLocaleDateString('es-MX')}</span>
+                    <span>{l.cantidadAlmacen} pzas</span>
+                    <span className="font-semibold">${l.costoUnitario}/u</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 border rounded-xl py-3">Cancelar</button>

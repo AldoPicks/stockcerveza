@@ -8,9 +8,11 @@ import { generarId } from './fifo.js';
 
 export function crearProducto({
   nombre,
-  categoria, // 'Cerveza' | 'Refresco' | 'Botana' | 'Preparado'
+  categoria, // 'Cerveza' | 'Refresco' | 'Botana' | 'Cigarros' | 'Preparado'
   tipo = 'Simple', // 'Simple' | 'Preparado'
   tipoEnvase = 'N/A', // 'Retornable' | 'No retornable' | 'N/A'
+  tipoVenta = 'Individual', // 'Individual' | 'Caja' — si es Caja, se compra por caja y se vende por unidad
+  unidadesPorCaja = 1, // solo relevante si tipoVenta === 'Caja'
   stockMinimo = 0,
   emoji = '🛒',
 }) {
@@ -20,6 +22,8 @@ export function crearProducto({
     categoria,
     tipo,
     tipoEnvase,
+    tipoVenta,
+    unidadesPorCaja,
     stockMinimo,
     activo: true,
     emoji,

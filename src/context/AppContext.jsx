@@ -346,6 +346,16 @@ export function AppProvider({ children }) {
 
   // ---------------- RF04: Venta ----------------
   async function confirmarVenta({ carrito, tipoPago, clienteId }) {
+    // Validar todo el carrito primero: si algo no alcanza, no se mueve
+    // ni un solo lote (evita dejar el motor FIFO a medio mutar).
+    for (const item of carrito) {
+      const disponible = engine.stockTotal(item.productoId, 'en_venta');
+      if (item.cantidad > disponible) {
+        const producto = productos.find((p) => p.id === item.productoId);
+        throw new Error(`No hay suficiente stock de "${producto?.nombre ?? item.productoId}" en el punto de venta (disponible: ${disponible}).`);
+      }
+    }
+
     const venta = crearVenta({ tipoPago, clienteId });
     let subtotal = 0;
     let descuentoTotal = 0;

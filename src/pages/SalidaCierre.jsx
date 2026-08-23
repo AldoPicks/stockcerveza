@@ -19,17 +19,23 @@ export default function SalidaCierre() {
 
 function IniciarSalida({ productos, stockAlmacen, onIniciar }) {
   const [cantidades, setCantidades] = useState({});
+  const [error, setError] = useState(null);
 
   function set(productoId, valor) {
     setCantidades((prev) => ({ ...prev, [productoId]: valor }));
   }
 
-  function confirmar() {
+  async function confirmar() {
     const items = Object.entries(cantidades)
       .filter(([, v]) => Number(v) > 0)
       .map(([productoId, v]) => ({ productoId, cantidad: Number(v) }));
     if (items.length === 0) return;
-    onIniciar(items);
+    setError(null);
+    try {
+      await onIniciar(items);
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   return (
@@ -38,6 +44,8 @@ function IniciarSalida({ productos, stockAlmacen, onIniciar }) {
       <p className="text-xs text-gray-500">
         Indica cuánto sacas de Almacén al punto de venta. El sistema asigna automáticamente los lotes más antiguos (FIFO).
       </p>
+
+      {error && <div className="bg-red-50 text-red-600 text-sm rounded-xl p-3">{error}</div>}
 
       <div className="bg-white rounded-2xl divide-y">
         {productos.filter((p) => p.activo).map((p) => (
@@ -70,17 +78,23 @@ function CerrarDia({ productos, stockEnVenta, envaseStockPorProducto, onCerrar }
   const [envasesCompletos, setEnvasesCompletos] = useState({});
   const [envasesQuebrados, setEnvasesQuebrados] = useState({});
   const [resultado, setResultado] = useState(null);
+  const [error, setError] = useState(null);
 
   const productosEnVenta = productos.filter((p) => stockEnVenta(p.id) > 0);
   const retornablesEnVenta = productos.filter((p) => p.tipoEnvase === 'Retornable' && envaseStockPorProducto[p.id]?.cantidadEnVenta > 0);
 
-  function confirmarCierre() {
-    const res = onCerrar({
-      conteoProductoPorId: conteoProducto,
-      envasesCompletos,
-      envasesQuebrados,
-    });
-    setResultado(res);
+  async function confirmarCierre() {
+    setError(null);
+    try {
+      const res = await onCerrar({
+        conteoProductoPorId: conteoProducto,
+        envasesCompletos,
+        envasesQuebrados,
+      });
+      setResultado(res);
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   if (resultado) {

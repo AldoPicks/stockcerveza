@@ -37,6 +37,15 @@ export default function Venta() {
   }
 
   function cambiarCantidad(productoId, delta) {
+    if (delta > 0) {
+      const disponible = stockEnVenta(productoId);
+      const actual = carrito.find((i) => i.productoId === productoId)?.cantidad ?? 0;
+      if (actual + delta > disponible) {
+        const producto = productos.find((p) => p.id === productoId);
+        setMensaje(`Solo hay ${disponible} en venta de "${producto?.nombre}".`);
+        return;
+      }
+    }
     setCarrito((prev) =>
       prev
         .map((i) => (i.productoId === productoId ? { ...i, cantidad: i.cantidad + delta } : i))
@@ -53,6 +62,7 @@ export default function Venta() {
 
   function irACobrar() {
     if (carrito.length === 0) return;
+    setMensaje(null);
     setMostrarCheckout(true);
   }
 
@@ -63,13 +73,13 @@ export default function Venta() {
     setNuevoClienteNombre('');
   }
 
-  function confirmar() {
+  async function confirmar() {
     if (tipoPago === 'Credito' && !clienteId) {
       setMensaje('Selecciona o da de alta un cliente para venta a crédito.');
       return;
     }
     try {
-      confirmarVenta({ carrito, tipoPago, clienteId: tipoPago === 'Credito' ? clienteId : null });
+      await confirmarVenta({ carrito, tipoPago, clienteId: tipoPago === 'Credito' ? clienteId : null });
       setCarrito([]);
       setMostrarCheckout(false);
       setTipoPago('Contado');
@@ -86,7 +96,7 @@ export default function Venta() {
   if (mostrarCheckout) {
     return (
       <div className="p-4 space-y-4">
-        <button onClick={() => setMostrarCheckout(false)} className="text-brand text-sm">← Regresar</button>
+        <button onClick={() => { setMensaje(null); setMostrarCheckout(false); }} className="text-brand text-sm">← Regresar</button>
         <h2 className="font-bold text-lg">Resumen de venta</h2>
         <div className="bg-white rounded-2xl divide-y">
           {carrito.map((i) => {
