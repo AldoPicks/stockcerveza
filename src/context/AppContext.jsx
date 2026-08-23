@@ -421,6 +421,55 @@ export function AppProvider({ children }) {
     return venta;
   }
 
+  // ---------------- Cancelar una venta ya registrada ----------------
+  // No borra el registro (queda para auditoría, marcado como "Cancelada"),
+  // pero SÍ revierte todo su efecto: regresa el stock a los lotes exactos
+  // de donde salió, descuenta el envase que se había sumado por canje, y
+  // resta el monto del saldo del cliente si era venta a crédito.
+  async function cancelarVenta(ventaId) {
+    const venta = ventas.find((v) => v.id === ventaId);
+    if (!venta) throw new Error('No se encontró esa venta.');
+    if (venta.estado === 'Cancelada') throw new Error('Esta venta ya estaba cancelada.');
+
+    const lotesTocados = new Map();
+    const envaseUpdates = [];
+
+    venta.detalles.forEach((d) => {
+      const afectados = engine.revertirConsumo(d.lotesUsados);
+      afectados.forEach((l) => lotesTocados.set(l.id, l));
+
+      const producto = productos.find((p) => p.id === d.productoId);
+      if (producto?.tipoEnvase === 'Retornable' && d.traeCanje) {
+        const env = envaseStockPorProducto[d.productoId];
+        if (env) envaseUpdates.push({ productoId: d.productoId, cantidadEnVenta: Math.max(0, env.cantidadEnVenta - d.cantidad) });
+      }
+    });
+
+    const nuevoSaldoCliente =
+      venta.tipoPago === 'Credito' && venta.clienteId
+        ? Math.max(0, (clientes.find((c) => c.id === venta.clienteId)?.saldoActual ?? 0) - venta.total)
+        : null;
+
+    if (firebaseConfigurado) {
+      await fs.persistirLotesFS(Array.from(lotesTocados.values()));
+      await Promise.all(envaseUpdates.map((e) => fs.actualizarEnvaseStockFS(e.productoId, { cantidadEnVenta: e.cantidadEnVenta })));
+      await fs.actualizarVentaFS(ventaId, { estado: 'Cancelada' });
+      if (nuevoSaldoCliente !== null) await fs.actualizarSaldoClienteFS(venta.clienteId, nuevoSaldoCliente);
+      refrescarLotes();
+      return;
+    }
+
+    envaseUpdates.forEach((e) => {
+      const env = envaseStockPorProducto[e.productoId];
+      if (env) env.cantidadEnVenta = e.cantidadEnVenta;
+    });
+    setVentas((prev) => prev.map((v) => (v.id === ventaId ? { ...v, estado: 'Cancelada' } : v)));
+    if (nuevoSaldoCliente !== null) {
+      setClientes((prev) => prev.map((c) => (c.id === venta.clienteId ? { ...c, saldoActual: nuevoSaldoCliente } : c)));
+    }
+    refrescarLotes();
+  }
+
   // ---------------- RF05: Clientes y abonos ----------------
   async function agregarCliente(datos) {
     const nuevo = crearCliente(datos);
@@ -495,6 +544,7 @@ export function AppProvider({ children }) {
       iniciarSalida,
       cerrarDia,
       confirmarVenta,
+      cancelarVenta,
       agregarCliente,
       eliminarCliente,
       registrarAbono,

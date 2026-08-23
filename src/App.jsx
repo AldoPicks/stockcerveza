@@ -9,6 +9,7 @@ import Mas from './pages/Mas.jsx';
 import Compras from './pages/Compras.jsx';
 import EnvasesIncidencias from './pages/EnvasesIncidencias.jsx';
 import SalidaCierre from './pages/SalidaCierre.jsx';
+import VentasDelDia from './pages/VentasDelDia.jsx';
 import LoginScreen from './pages/LoginScreen.jsx';
 import { useApp } from './context/AppContext.jsx';
 import { useAuth } from './context/AuthContext.jsx';
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/compras" element={<Compras />} />
         <Route path="/envases" element={<EnvasesIncidencias />} />
         <Route path="/salida-cierre" element={<SalidaCierre />} />
+        <Route path="/ventas-dia" element={<VentasDelDia />} />
       </Routes>
       <BottomNav />
     </div>

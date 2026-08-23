@@ -23,6 +23,7 @@ export default function Mas() {
     <div className="p-4 space-y-3">
       <h2 className="font-bold text-lg">Más</h2>
       {item('/envases', '🗑️', 'Envases e Incidencias', `${incidenciasEnvase.length} incidencias registradas`)}
+      {item('/ventas-dia', '🧾', 'Ventas del día', 'Ver, cancelar y exportar a Excel/PDF')}
       {item('/compras', '💵', 'Compras', 'Registrar nueva compra')}
       {item('/salida-cierre', '📤', 'Salida a venta / Cierre', `${historialCierres.length} cierres realizados`)}
 

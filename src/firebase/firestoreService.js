@@ -175,6 +175,10 @@ export async function crearVentaFS(venta) {
   return ref.id;
 }
 
+export async function actualizarVentaFS(ventaId, cambios) {
+  await updateDoc(doc(db, 'ventas', ventaId), cambios);
+}
+
 export async function crearAbonoFS(abono) {
   const { id, ...datos } = abono;
   await addDoc(collection(db, 'abonos'), { ...datos, fecha: Timestamp.fromDate(datos.fecha) });
