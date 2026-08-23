@@ -270,6 +270,27 @@ export function AppProvider({ children }) {
     refrescarLotes();
   }
 
+  // Herramienta correctiva: regresa a Almacén cualquier stock que haya
+  // quedado "en venta" sin que exista un ciclo abierto que lo respalde
+  // (puede pasar si cancelaste una venta después de haber cerrado el día,
+  // con una versión anterior de la app, antes de esta corrección).
+  async function regresarStockHuerfanoAAlmacen() {
+    const lotesTocados = [];
+    engine.lotes.forEach((l) => {
+      if (l.cantidadEnVenta > 0) {
+        l.cantidadAlmacen += l.cantidadEnVenta;
+        l.cantidadEnVenta = 0;
+        lotesTocados.push(l);
+      }
+    });
+    if (lotesTocados.length === 0) return;
+
+    if (firebaseConfigurado) {
+      await fs.persistirLotesFS(lotesTocados);
+    }
+    refrescarLotes();
+  }
+
   // ---------------- RF09: Cierre diario (producto + envases) ----------------
   async function cerrarDia({ conteoProductoPorId, envasesCompletos, envasesQuebrados }) {
     if (!salidaActual) throw new Error('No hay una salida abierta para cerrar.');
@@ -447,11 +468,19 @@ export function AppProvider({ children }) {
     if (!venta) throw new Error('No se encontró esa venta.');
     if (venta.estado === 'Cancelada') throw new Error('Esta venta ya estaba cancelada.');
 
+    // Si el ciclo de venta que estaba abierto cuando se hizo esta venta ya
+    // se cerró, no tiene sentido regresar el stock a "En venta" (quedaría
+    // vendible sin que ningún ciclo lo esté controlando). En ese caso se
+    // regresa directo a Almacén; solo si SIGUE habiendo un ciclo abierto
+    // se regresa a "En venta" para poder revenderlo de inmediato.
+    const hayCicloAbierto = salidaActual && salidaActual.estado === 'Abierto';
+    const destino = hayCicloAbierto ? 'en_venta' : 'almacen';
+
     const lotesTocados = new Map();
     const envaseUpdates = [];
 
     venta.detalles.forEach((d) => {
-      const afectados = engine.revertirConsumo(d.lotesUsados);
+      const afectados = engine.revertirConsumo(d.lotesUsados, destino);
       afectados.forEach((l) => lotesTocados.set(l.id, l));
 
       const producto = productos.find((p) => p.id === d.productoId);
@@ -558,6 +587,7 @@ export function AppProvider({ children }) {
       reactivarProducto,
       registrarCompra,
       iniciarSalida,
+      regresarStockHuerfanoAAlmacen,
       cerrarDia,
       confirmarVenta,
       cancelarVenta,

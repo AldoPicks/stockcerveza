@@ -139,12 +139,16 @@ export class FIFOEngine {
 
   // ---- Cancelación de venta: regresa el stock a los lotes exactos de donde salió ----
 
-  revertirConsumo(lotesUsados) {
+  revertirConsumo(lotesUsados, destino = 'en_venta') {
     const afectados = [];
     (lotesUsados || []).forEach(({ loteId, cantidad }) => {
       const lote = this.lotes.find((l) => l.id === loteId);
       if (lote) {
-        lote.cantidadEnVenta += cantidad;
+        if (destino === 'almacen') {
+          lote.cantidadAlmacen += cantidad;
+        } else {
+          lote.cantidadEnVenta += cantidad;
+        }
         afectados.push(lote);
       }
       // Si el lote ya no existe (producto eliminado permanentemente), se ignora:

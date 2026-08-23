@@ -6,7 +6,7 @@ export default function Home() {
   const { productos, ventas, clientes, envaseStockPorProducto, incidenciasEnvase, stockAlmacen, salidaActual } = useApp();
 
   const hoy = new Date().toDateString();
-  const ventasHoy = ventas.filter((v) => new Date(v.fecha).toDateString() === hoy);
+  const ventasHoy = ventas.filter((v) => v.estado === 'Confirmada' && new Date(v.fecha).toDateString() === hoy);
   const totalVentasHoy = ventasHoy.reduce((s, v) => s + v.total, 0);
   const gananciaHoy = ventasHoy.reduce((s, v) => s + v.gananciaEstimada, 0);
   const cuentasPorCobrar = clientes.reduce((s, c) => s + c.saldoActual, 0);

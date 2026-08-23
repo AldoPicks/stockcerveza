@@ -54,7 +54,7 @@ export default function Mas() {
       )}
 
       <div className="text-center text-xs text-gray-400 pt-6">
-        🍺 StockCerveza v1.0 MVP
+        🍺 StockCerveza v1.1 MVP
         <br />
         Inventario y Ventas
       </div>

@@ -5,7 +5,10 @@ export default function VentaDashboard() {
   const { ventas, productos } = useApp();
 
   const hoy = new Date().toDateString();
-  const ventasHoy = useMemo(() => ventas.filter((v) => new Date(v.fecha).toDateString() === hoy), [ventas, hoy]);
+  const ventasHoy = useMemo(
+    () => ventas.filter((v) => v.estado === 'Confirmada' && new Date(v.fecha).toDateString() === hoy),
+    [ventas, hoy]
+  );
 
   const porHora = useMemo(() => {
     const mapa = {};

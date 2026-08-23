@@ -2,10 +2,18 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 
 export default function SalidaCierre() {
-  const { productos, ventas, stockAlmacen, stockEnVenta, salidaActual, iniciarSalida, cerrarDia } = useApp();
+  const { productos, ventas, stockAlmacen, stockEnVenta, salidaActual, iniciarSalida, regresarStockHuerfanoAAlmacen, cerrarDia } = useApp();
 
   if (!salidaActual) {
-    return <IniciarSalida productos={productos} stockAlmacen={stockAlmacen} onIniciar={iniciarSalida} />;
+    return (
+      <IniciarSalida
+        productos={productos}
+        stockAlmacen={stockAlmacen}
+        stockEnVenta={stockEnVenta}
+        onIniciar={iniciarSalida}
+        onRegresarHuerfano={regresarStockHuerfanoAAlmacen}
+      />
+    );
   }
 
   // Cuánto se ha vendido de cada producto retornable desde que se abrió este
@@ -33,9 +41,12 @@ export default function SalidaCierre() {
   );
 }
 
-function IniciarSalida({ productos, stockAlmacen, onIniciar }) {
+function IniciarSalida({ productos, stockAlmacen, stockEnVenta, onIniciar, onRegresarHuerfano }) {
   const [cantidades, setCantidades] = useState({});
   const [error, setError] = useState(null);
+  const [regresando, setRegresando] = useState(false);
+
+  const productosConStockHuerfano = productos.filter((p) => stockEnVenta(p.id) > 0);
 
   function set(productoId, valor) {
     setCantidades((prev) => ({ ...prev, [productoId]: valor }));
@@ -54,12 +65,36 @@ function IniciarSalida({ productos, stockAlmacen, onIniciar }) {
     }
   }
 
+  async function regresarHuerfano() {
+    setRegresando(true);
+    try {
+      await onRegresarHuerfano();
+    } finally {
+      setRegresando(false);
+    }
+  }
+
   return (
     <div className="p-4 space-y-3">
       <h2 className="font-bold text-lg">Salida a venta</h2>
       <p className="text-xs text-gray-500">
         Indica cuánto sacas de Almacén al punto de venta. El sistema asigna automáticamente los lotes más antiguos (FIFO).
       </p>
+
+      {productosConStockHuerfano.length > 0 && (
+        <div className="bg-yellow-50 rounded-xl p-3 space-y-2">
+          <p className="text-sm text-yellow-700">
+            ⚠️ Hay stock marcado "en venta" sin que exista un ciclo abierto ({productosConStockHuerfano.map((p) => `${p.nombre}: ${stockEnVenta(p.id)}`).join(', ')}). Esto puede pasar por una venta cancelada de un ciclo ya cerrado.
+          </p>
+          <button
+            onClick={regresarHuerfano}
+            disabled={regresando}
+            className="w-full bg-yellow-600 text-white rounded-xl py-2 text-sm font-semibold disabled:opacity-50"
+          >
+            {regresando ? 'Regresando…' : 'Regresar todo ese stock a Almacén'}
+          </button>
+        </div>
+      )}
 
       {error && <div className="bg-red-50 text-red-600 text-sm rounded-xl p-3">{error}</div>}
 
